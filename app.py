@@ -9,6 +9,8 @@ import os
 app = Flask(__name__)
 # Use environment variables for production, fallback to defaults for local dev
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # No time limit for CSRF tokens
 
 # Fix PostgreSQL URL format (Render uses postgres:// but SQLAlchemy needs postgresql://)
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///hospital_management.db')
@@ -56,6 +58,12 @@ def index():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=form.email.data).first()
+        if existing_user:
+            flash('Email already registered. Please use a different email or login.', 'danger')
+            return redirect(url_for('register'))
+        
         user = User(
             username=form.username.data,
             email=form.email.data,
@@ -79,8 +87,15 @@ def register():
             return redirect(url_for('login'))
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'danger')
+            print(f"Registration error: {str(e)}")  # Log the actual error
+            flash(f'Registration failed: {str(e)}', 'danger')
             return redirect(url_for('register'))
+    else:
+        # Show form validation errors
+        if request.method == 'POST':
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f'{field}: {error}', 'danger')
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
