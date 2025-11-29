@@ -4,10 +4,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Patient, Doctor, Department, Appointment, MedicalRecord
 from forms import LoginForm, RegistrationForm, AppointmentForm
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hospital_management.db'
+# Use environment variables for production, fallback to defaults for local dev
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///hospital_management.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 

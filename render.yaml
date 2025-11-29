@@ -1,0 +1,23 @@
+services:
+  # Web Service
+  - type: web
+    name: hospital-management-system
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hospital-db
+          property: connectionString
+
+databases:
+  - name: hospital-db
+    databaseName: hospital_management
+    user: hospital_user
+    plan: free
