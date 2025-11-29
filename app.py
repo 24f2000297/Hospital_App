@@ -9,32 +9,43 @@ import os
 app = Flask(__name__)
 # Use environment variables for production, fallback to defaults for local dev
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///hospital_management.db')
+
+# Fix PostgreSQL URL format (Render uses postgres:// but SQLAlchemy needs postgresql://)
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///hospital_management.db')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 db.init_app(app)
 
-# Initialize database
-with app.app_context():
-    db.create_all()
-    # Create admin user if it doesn't exist
-    admin_email = 'admin@hospital.com'
-    admin = User.query.filter_by(email=admin_email).first()
-    if not admin:
-        admin_user = User(
-            username='admin',
-            email=admin_email,
-            password=generate_password_hash('admin123'),
-            role='admin'
-        )
-        db.session.add(admin_user)
+# Initialize database on first request
+@app.before_request
+def before_first_request():
+    if not hasattr(app, 'db_initialized'):
         try:
-            db.session.commit()
-            print("Admin user created successfully!")
+            db.create_all()
+            # Create admin user if it doesn't exist
+            admin_email = 'admin@hospital.com'
+            admin = User.query.filter_by(email=admin_email).first()
+            if not admin:
+                admin_user = User(
+                    username='admin',
+                    email=admin_email,
+                    password=generate_password_hash('admin123'),
+                    role='admin'
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Admin user created successfully!")
         except Exception as e:
+            print(f"Database initialization error: {e}")
             db.session.rollback()
-            print(f"Error creating admin user: {e}")
-    else:
-        print("Admin user already exists.")
+        app.db_initialized = True
 
 # Routes
 @app.route('/')
