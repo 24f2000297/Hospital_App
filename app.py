@@ -78,8 +78,8 @@ def register():
                 user_id=user.id,
                 name=form.username.data,  # Using username as name initially
                 dob=datetime.now(),  # Default date, should be updated later
-                gender='Not specified',  # Default gender
-                phone='Not specified'  # Default phone
+                gender='Other',  # Default gender (shorter)
+                phone='0000000000'  # Default phone (10 digits)
             )
             db.session.add(patient)
             db.session.commit()
